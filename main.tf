@@ -1,5 +1,5 @@
 module "encryption_default_ebs" {
-  source = "./modules/encryption _default _ebs"
+  source = "./modules/ebs_encryption"
 }
 
 module "active_password_policy" {
