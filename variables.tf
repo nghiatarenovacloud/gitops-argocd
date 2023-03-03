@@ -3,3 +3,10 @@ variable "aws_region" {
   type        = string
   default     = "us-west-1"
 }
+variable "organization_service" {
+  type = list(string)
+  default = [
+    "cloudtrail.amazonaws.com",
+    "config.amazonaws.com",
+  ]
+}
