@@ -15,8 +15,8 @@ AWS Landing Zone with hardened CIS
 resource "aws_organizations_organization" "org" {
   #aws_service_access_principals = var.organization_service  => comment this line
 
-  feature_set          = "ALL"
-  enabled_policy_types = ["SERVICE_CONTROL_POLICY"]
+  #feature_set          = "ALL"=> comment this line
+  #enabled_policy_types = ["SERVICE_CONTROL_POLICY"]=> comment this line
 }
 ```
 
@@ -28,8 +28,8 @@ resource "aws_organizations_organization" "org" {
 resource "aws_organizations_organization" "org" {
   aws_service_access_principals = var.organization_service  => delete comment this line
 
-  feature_set          = "ALL"
-  enabled_policy_types = ["SERVICE_CONTROL_POLICY"]
+  feature_set          = "ALL"=> delete comment this line
+  enabled_policy_types = ["SERVICE_CONTROL_POLICY"]=> delete comment this line
 }
 ```
 
