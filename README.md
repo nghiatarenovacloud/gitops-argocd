@@ -5,7 +5,7 @@ AWS Landing Zone with hardened CIS
 # How to run code
 
 1. First create organization by console
-2. Go to org.tf file and comment code:
+2. Go to **org.tf** file and comment code:
 
 ```
 resource "aws_organizations_organization" "org" {
@@ -17,8 +17,13 @@ resource "aws_organizations_organization" "org" {
 ```
 
 3. Run **import** command:
+
    `terraform import aws_organizations_organization.org <org.id>`
-   ` => terraform manage resource "aws_organizations_organization" success`
+
+   And you will receive the following result:
+
+   `terraform manage resource "aws_organizations_organization" success`
+
 4. Delete **comment** code:
 
 ```
@@ -31,6 +36,9 @@ resource "aws_organizations_organization" "org" {
 ```
 
 5. Perform **plan** action:
+
    `terraform plan`
+
 6. Perform **apply** action:
+
    `terraform apply --auto-approve`
