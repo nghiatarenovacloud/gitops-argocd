@@ -28,13 +28,3 @@ variable "allow_users_to_change_password" {
   type        = bool
   default     = true
 }
-# variable "max_password_age" {
-#   description = "max_password_age"
-#   type        = boolean
-#   default     = true
-# }
-# variable "password_reuse_prevention" {
-#   description = "max_password_age"
-#   type        = boolean
-#   default     = true
-# }
