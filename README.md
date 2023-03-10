@@ -9,25 +9,28 @@ AWS Landing Zone with hardened CIS
 
 ```
 resource "aws_organizations_organization" "org" {
-  #aws_service_access_principals = var.organization_service  => comment this line
-
-  #feature_set          = "ALL"=> comment this line
-  #enabled_policy_types = ["SERVICE_CONTROL_POLICY"]=> comment this line
+  # Comment the below line
+  #aws_service_access_principals = var.organization_service
+  #feature_set          = "ALL"
+  #enabled_policy_types = ["SERVICE_CONTROL_POLICY"]
 }
 ```
 
-3. Run import command : terraform import aws_organizations_organization.org <org.id>
-   => terraform manage resource "aws_organizations_organization" success
-4. Delete comment code:
+3. Run **import** command:
+   `terraform import aws_organizations_organization.org <org.id>`
+   ` => terraform manage resource "aws_organizations_organization" success`
+4. Delete **comment** code:
 
 ```
 resource "aws_organizations_organization" "org" {
-  aws_service_access_principals = var.organization_service  => delete comment this line
-
-  feature_set          = "ALL"=> delete comment this line
-  enabled_policy_types = ["SERVICE_CONTROL_POLICY"]=> delete comment this line
+  # Delete comment code below:
+  aws_service_access_principals = var.organization_service
+  feature_set          = "ALL"
+  enabled_policy_types = ["SERVICE_CONTROL_POLICY"]
 }
 ```
 
-5. Run terraform plan
-6. Run terraform apply --auto-approve
+5. Perform **plan** action:
+   `terraform plan`
+6. Perform **apply** action:
+   `terraform apply --auto-approve`
