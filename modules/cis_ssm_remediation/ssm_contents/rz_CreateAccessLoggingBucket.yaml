@@ -1,0 +1,101 @@
+description: |
+  ### Document Name - RZ-CreateAccessLoggingBucket
+
+
+  ## What does this document do?
+
+  Creates an S3 bucket for access logging.
+
+
+  ## Input Parameters
+
+  * AutomationAssumeRole: (Required) The ARN of the role that allows
+  Automation to perform the actions on your behalf.
+
+  * BucketName: (Required) Name of the bucket to create
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: >-
+      (Required) The ARN of the role that allows Automation to perform
+      the actions on your behalf.
+    allowedPattern: ^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$
+  BucketName:
+    type: String
+    description: (Required) The bucket name (not the ARN).
+    allowedPattern: >-
+      (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+outputs:
+  - CreateAccessLoggingBucket.Output
+mainSteps:
+  - name: CreateAccessLoggingBucket
+    action: aws:executeScript
+    inputs:
+      InputPayload:
+        BucketName: "{{BucketName}}"
+        AWS_REGION: "{{global:REGION}}"
+      Runtime: python3.8
+      Handler: create_logging_bucket
+      Script: >-
+        # Copyright Amazon.com, Inc. or its affiliates. All Rights
+        Reserved.
+
+        # SPDX-License-Identifier: Apache-2.0
+
+        import boto3
+
+        from botocore.exceptions import ClientError
+
+        from botocore.config import Config
+
+
+
+        def connect_to_s3(boto_config):
+            return boto3.client("s3", config=boto_config)
+
+
+        def create_logging_bucket(event, _):
+            boto_config = Config(retries={"mode": "standard"})
+            s3 = connect_to_s3(boto_config)
+
+            try:
+                kwargs = {
+                    "Bucket": event["BucketName"],
+                    "GrantWrite": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+                    "GrantReadACP": "uri=http://acs.amazonaws.com/groups/s3/LogDelivery",
+                }
+                if event["AWS_REGION"] != "us-east-1":
+                    kwargs["CreateBucketConfiguration"] = {
+                        "LocationConstraint": event["AWS_REGION"]
+                    }
+
+                s3.create_bucket(**kwargs)
+
+                s3.put_bucket_encryption(
+                    Bucket=event["BucketName"],
+                    ServerSideEncryptionConfiguration={
+                        "Rules": [
+                            {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}
+                        ]
+                    },
+                )
+                return {"output": {"Message": f'Bucket {event["BucketName"]} created'}}
+            except ClientError as error:
+                if error.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
+                    exit(str(error))
+                else:
+                    return {
+                        "output": {
+                            "Message": f'Bucket {event["BucketName"]} already exists and is owned by you'
+                        }
+                    }
+            except Exception as e:
+                print(e)
+                exit(str(e))
+    outputs:
+      - Name: Output
+        Selector: $.Payload.output
+        Type: StringMap
+    isEnd: true
