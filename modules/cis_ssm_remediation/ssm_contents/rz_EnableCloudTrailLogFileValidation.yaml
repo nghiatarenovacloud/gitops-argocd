@@ -25,10 +25,6 @@ description: |
   ## Output Parameters
 
   * UpdateTrail.Output: The response of the UpdateTrail API call.
-
-
-  ## Note: this is a local copy of the AWS-owned document to enable
-  support in aws-cn and aws-us-gov partitions.
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:
   AutomationAssumeRole:

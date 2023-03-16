@@ -41,10 +41,6 @@ description: |
 
   * GetBucketPublicAccessBlock.Output - JSON formatted response from the
   GetPublicAccessBlock API call
-
-
-  ## Note: this is a local copy of the AWS-owned document to enable
-  support in aws-cn and aws-us-gov partitions.
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
 outputs:

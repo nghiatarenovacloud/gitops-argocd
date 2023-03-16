@@ -15,15 +15,6 @@ description: |
   Automation to perform the actions on your behalf.
 
   * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
-
-
-  ## Security Standards / Controls
-
-  * AFSBP v1.0.0:   CloudTrail.1
-
-  * CIS v1.2.0:     2.1
-
-  * PCI:            CloudTrail.2
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:

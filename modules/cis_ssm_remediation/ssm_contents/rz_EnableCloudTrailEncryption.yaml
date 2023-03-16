@@ -16,15 +16,6 @@ description: |
   * TrailRegion: region of the CloudTrail to encrypt
 
   * TrailArn: ARN of the CloudTrail to encrypt
-
-
-  ## Security Standards / Controls
-
-  * AFSBP v1.0.0:   CloudTrail.2
-
-  * CIS v1.2.0:     2.7
-
-  * PCI:            CloudTrail.1
 schemaVersion: "0.3"
 assumeRole: "{{ AutomationAssumeRole }}"
 parameters:

@@ -7,7 +7,7 @@ description: |
   This document deletes ingress and egress rules from default security
 
   group using the AWS SSM Runbook
-  AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules
+  RZ-RemoveVPCDefaultSecurityGroupRules
 
 
   ## Input Parameters
@@ -20,9 +20,7 @@ description: |
 
   ## Output Parameters
 
-  * Remediation.Output - Output from
-  AWSConfigRemediation-RemoveVPCDefaultSecurityGroupRules SSM doc
-
+  * Remediation.Output
 schemaVersion: "0.3"
 parameters:
   Finding:
