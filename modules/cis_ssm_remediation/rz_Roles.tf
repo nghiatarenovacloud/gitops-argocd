@@ -386,10 +386,7 @@ resource "aws_iam_policy" "remediation_role_create_iam_support_role" {
     ]
     Version = "2012-10-17"
   }
-  name = "RemediationRoleCreateIAMSupportRoleB811FF40"
-  // CF Property(Roles) = [
-  //   aws_iam_role.remediation_role_create_iam_support_role_member_account_role_fd80_f5_f3.arn
-  // ]
+  name = "RemediationRoleCreateIAMSupportRole"
 }
 
 resource "aws_iam_role" "remediation_role_create_iam_support_role_member_account_role" {
@@ -687,10 +684,7 @@ resource "aws_iam_policy" "remediation_role_configure_s3_public_access_block" {
     ]
     Version = "2012-10-17"
   }
-  name = "RemediationRoleConfigureS3PublicAccessBlock26BF29A6"
-  // CF Property(Roles) = [
-  //   aws_iam_role.remediation_role_configure_s3_public_access_block_member_account_role98_a4_bc1_d.arn
-  // ]
+  name = "RemediationRoleConfigureS3PublicAccessBlock"
 }
 
 resource "aws_iam_role" "remediation_role_configure_s3_public_access_block" {
