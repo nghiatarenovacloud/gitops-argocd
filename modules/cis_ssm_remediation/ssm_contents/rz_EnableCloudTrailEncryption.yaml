@@ -1,0 +1,108 @@
+description: |
+  ### Document Name - RZ-EnableCloudTrailEncryption
+
+  ## What does this document do?
+
+  Enables encryption on a CloudTrail using the provided KMS CMK
+
+
+  ## Input Parameters
+
+  * AutomationAssumeRole: (Required) The ARN of the role that allows
+  Automation to perform the actions on your behalf.
+
+  * KMSKeyArn (from SSM): Arn of the KMS key to be used to encrypt data
+
+  * TrailRegion: region of the CloudTrail to encrypt
+
+  * TrailArn: ARN of the CloudTrail to encrypt
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: >-
+      (Required) The ARN of the role that allows Automation to perform
+      the actions on your behalf.
+    allowedPattern: ^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$
+  KMSKeyArn:
+    type: String
+    default: "{{ssm:/Solutions/SO0111/CMK_REMEDIATION_ARN}}"
+    description: The ARN of the KMS key created by ASR for this remediation
+    allowedPattern: >-
+      ^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$
+  TrailRegion:
+    type: String
+    description: Region the CloudTrail is in
+    allowedPattern: ^[a-z]{2}(?:-gov)?-[a-z]+-\d$
+  TrailArn:
+    type: String
+    description: ARN of the CloudTrail
+    allowedPattern: >-
+      ^arn:(?:aws|aws-cn|aws-us-gov):cloudtrail:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:trail/[A-Za-z0-9._-]{3,128}$
+outputs:
+  - Remediation.Output
+mainSteps:
+  - name: Remediation
+    action: aws:executeScript
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        exec_region: "{{global:REGION}}"
+        trail_region: "{{TrailRegion}}"
+        trail: "{{TrailArn}}"
+        region: "{{global:REGION}}"
+        kms_key_arn: "{{KMSKeyArn}}"
+      Runtime: python3.8
+      Handler: enable_trail_encryption
+      Script: >-
+        # Copyright Amazon.com, Inc. or its affiliates. All Rights
+        Reserved.
+
+        # SPDX-License-Identifier: Apache-2.0
+
+        import boto3
+
+        from botocore.config import Config
+
+        from botocore.exceptions import ClientError
+
+
+        def connect_to_cloudtrail(region, boto_config):
+            return boto3.client('cloudtrail', region_name=region, config=boto_config)
+
+        def enable_trail_encryption(event, _):
+            """
+            remediates CloudTrail.2 by enabling SSE-KMS
+            On success returns a string map
+            On failure returns NoneType
+            """
+            boto_config = Config(
+                retries ={
+                  'mode': 'standard'
+                }
+            )
+
+            if event['trail_region'] != event['exec_region']:
+                exit('ERROR: cross-region remediation is not yet supported')
+
+            ctrail_client = connect_to_cloudtrail(event['trail_region'], boto_config)
+            kms_key_arn = event['kms_key_arn']
+
+            try:
+                ctrail_client.update_trail(
+                    Name=event['trail'],
+                    KmsKeyId=kms_key_arn
+                )
+                return {
+                    "response": {
+                        "message": f'Enabled KMS CMK encryption on {event["trail"]}',
+                        "status": "Success"
+                    }
+                }
+            except Exception as e:
+                exit(f'Error enabling SSE-KMS encryption: {str(e)}')
+    isEnd: true

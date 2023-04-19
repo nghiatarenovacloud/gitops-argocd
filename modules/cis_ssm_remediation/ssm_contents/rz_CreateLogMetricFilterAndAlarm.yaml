@@ -1,0 +1,343 @@
+description: |
+  ### Document Name - RZ-CreateLogMetricFilterAndAlarm
+
+  ## What does this document do?
+
+  Creates a metric filter for a given log group and also creates and
+  alarm for the metric.
+
+
+  ## Input Parameters
+
+  * AutomationAssumeRole: (Required) The ARN of the role that allows
+  Automation to perform the actions on your behalf.
+
+  * CloudWatch Log Group Name: Name of the CloudWatch log group to use
+  to create metric filter
+
+  * Alarm Value: Threshhold value for the creating an alarm for the
+  CloudWatch Alarm
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: >-
+      (Required) The ARN of the role that allows Automation to perform
+      the actions on your behalf.
+    allowedPattern: ^arn:(?:aws|aws-us-gov|aws-cn):iam::\d{12}:role/[\w+=,.@-]+$
+  LogGroupName:
+    type: String
+    description: Name of the log group to be used to create metric filter
+    allowedPattern: .*
+  FilterName:
+    type: String
+    description: Name for the metric filter
+    allowedPattern: .*
+  FilterPattern:
+    type: String
+    description: Filter pattern to create metric filter
+    allowedPattern: .*
+  MetricName:
+    type: String
+    description: Name of the metric for metric filter
+    allowedPattern: .*
+  MetricValue:
+    type: Integer
+    description: Value of the metric for metric filter
+  MetricNamespace:
+    type: String
+    description: Namespace where the metrics will be sent
+    allowedPattern: .*
+  AlarmName:
+    type: String
+    description: Name of the Alarm to be created for the metric filter
+    allowedPattern: .*
+  AlarmDesc:
+    type: String
+    description: Description of the Alarm to be created for the metric filter
+    allowedPattern: .*
+  AlarmThreshold:
+    type: Integer
+    description: Threshold value for the alarm
+  KMSKeyArn:
+    type: String
+    description: >-
+      The ARN of a KMS key to use for encryption of the SNS Topic and
+      Config bucket
+    allowedPattern: >-
+      ^arn:(?:aws|aws-us-gov|aws-cn):kms:(?:[a-z]{2}(?:-gov)?-[a-z]+-\d):\d{12}:(?:(?:alias/[A-Za-z0-9/-_])|(?:key/(?i:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})))$
+  SNSTopicName:
+    type: String
+    allowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]{0,255}$
+mainSteps:
+  - name: CreateTopic
+    action: aws:executeScript
+    outputs:
+      - Name: TopicArn
+        Selector: $.Payload.topic_arn
+        Type: String
+    inputs:
+      InputPayload:
+        kms_key_arn: "{{KMSKeyArn}}"
+        topic_name: "{{SNSTopicName}}"
+      Runtime: python3.8
+      Handler: create_encrypted_topic
+      Script: >-
+        # Copyright Amazon.com, Inc. or its affiliates. All Rights
+        Reserved.
+
+        # SPDX-License-Identifier: Apache-2.0
+
+        import json
+
+        import boto3
+
+        from botocore.config import Config
+
+        from botocore.exceptions import ClientError
+
+
+        boto_config = Config(
+            retries ={
+                'mode': 'standard'
+            }
+        )
+
+
+        def connect_to_sns():
+            return boto3.client('sns', config=boto_config)
+
+        def connect_to_ssm():
+            return boto3.client('ssm', config=boto_config)
+
+        def create_encrypted_topic(event, _):
+
+            kms_key_arn = event['kms_key_arn']
+            new_topic = False
+            topic_arn = ''
+            topic_name = event['topic_name']
+
+            try:
+                sns = connect_to_sns()
+                topic_arn = sns.create_topic(
+                    Name=topic_name,
+                    Attributes={
+                        'KmsMasterKeyId': kms_key_arn.split('key/')[1]
+                    }
+                )['TopicArn']
+                new_topic = True
+
+            except ClientError as client_exception:
+                exception_type = client_exception.response['Error']['Code']
+                if exception_type == 'InvalidParameter':
+                    print(f'Topic {topic_name} already exists. This remediation may have been run before.')
+                    print('Ignoring exception - remediation continues.')
+                    topic_arn = sns.create_topic(
+                        Name=topic_name
+                    )['TopicArn']
+                else:
+                    exit(f'ERROR: Unhandled client exception: {client_exception}')
+
+            except Exception as e:
+                exit(f'ERROR: could not create SNS Topic {topic_name}: {str(e)}')
+
+            if new_topic:
+                try:
+                    ssm = connect_to_ssm()
+                    ssm.put_parameter(
+                        Name='/Solutions/SO0111/SNS_Topic_CIS3.x',
+                        Description='SNS Topic for AWS Config updates',
+                        Type='String',
+                        Overwrite=True,
+                        Value=topic_arn
+                    )
+                except Exception as e:
+                    exit(f'ERROR: could not create SNS Topic {topic_name}: {str(e)}')
+
+            create_topic_policy(topic_arn)
+
+            return {"topic_arn": topic_arn}
+
+        def create_topic_policy(topic_arn):
+            sns = connect_to_sns()
+            try:
+                topic_policy = {
+                    "Id": "Policy_ID",
+                    "Statement": [
+                    {
+                        "Sid": "AWSConfigSNSPolicy",
+                        "Effect": "Allow",
+                        "Principal": {
+                        "Service": "cloudwatch.amazonaws.com"
+                        },
+                        "Action": "SNS:Publish",
+                        "Resource": topic_arn,
+                    }]
+                }
+
+                sns.set_topic_attributes(
+                    TopicArn=topic_arn,
+                    AttributeName='Policy',
+                    AttributeValue=json.dumps(topic_policy)
+                )
+            except Exception as e:
+                exit(f'ERROR: Failed to SetTopicAttributes for {topic_arn}: {str(e)}')
+  - name: CreateMetricFilerAndAlarm
+    action: aws:executeScript
+    outputs:
+      - Name: Output
+        Selector: $.Payload.response
+        Type: StringMap
+    inputs:
+      InputPayload:
+        LogGroupName: "{{LogGroupName}}"
+        FilterName: "{{FilterName}}"
+        FilterPattern: "{{FilterPattern}}"
+        MetricName: "{{MetricName}}"
+        MetricNamespace: "{{MetricNamespace}}"
+        MetricValue: "{{MetricValue}}"
+        AlarmName: "{{AlarmName}}"
+        AlarmDesc: "{{AlarmDesc}}"
+        AlarmThreshold: "{{AlarmThreshold}}"
+        TopicArn: "{{CreateTopic.TopicArn}}"
+      Runtime: python3.8
+      Handler: verify
+      Script: >-
+        # Copyright Amazon.com, Inc. or its affiliates. All Rights
+        Reserved.
+
+        # SPDX-License-Identifier: Apache-2.0
+
+        import boto3
+
+        import logging
+
+        import os
+
+        from botocore.config import Config
+
+
+        boto_config = Config(
+            retries={
+                'max_attempts': 10,
+                'mode': 'standard'
+            }
+        )
+
+
+        log = logging.getLogger()
+
+        LOG_LEVEL = str(os.getenv('LogLevel', 'INFO'))
+
+        log.setLevel(LOG_LEVEL)
+
+
+
+        def get_service_client(service_name):
+            """
+            Returns the service client for given the service name
+            :param service_name: name of the service
+            :return: service client
+            """
+            log.debug("Getting the service client for service: {}".format(service_name))
+            return boto3.client(service_name, config=boto_config)
+
+
+        def put_metric_filter(cw_log_group, filter_name, filter_pattern,
+        metric_name, metric_namespace, metric_value):
+            """
+            Puts the metric filter on the CloudWatch log group with provided values
+            :param cw_log_group: Name of the CloudWatch log group
+            :param filter_name: Name of the filter
+            :param filter_pattern: Pattern for the filter
+            :param metric_name: Name of the metric
+            :param metric_namespace: Namespace where metric is logged
+            :param metric_value: Value to be logged for the metric
+            """
+            logs_client = get_service_client('logs')
+            log.debug("Putting the metric filter with values: {}".format([
+                cw_log_group, filter_name, filter_pattern, metric_name, metric_namespace, metric_value]))
+            try:
+                logs_client.put_metric_filter(
+                    logGroupName=cw_log_group,
+                    filterName=filter_name,
+                    filterPattern=filter_pattern,
+                    metricTransformations=[
+                        {
+                            'metricName': metric_name,
+                            'metricNamespace': metric_namespace,
+                            'metricValue': str(metric_value),
+                            'unit': 'Count'
+                        }
+                    ]
+                )
+            except Exception as e:
+                exit("Exception occurred while putting metric filter: " + str(e))
+            log.debug("Successfully added the metric filter.")
+
+
+        def put_metric_alarm(alarm_name, alarm_desc, alarm_threshold,
+        metric_name, metric_namespace, topic_arn):
+            """
+            Puts the metric alarm for the metric name with provided values
+            :param alarm_name: Name for the alarm
+            :param alarm_desc: Description for the alarm
+            :param alarm_threshold: Threshold value for the alarm
+            :param metric_name: Name of the metric
+            :param metric_namespace: Namespace where metric is logged
+            """
+            cw_client = get_service_client('cloudwatch')
+            log.debug("Putting the metric alarm with values {}".format(
+                [alarm_name, alarm_desc, alarm_threshold, metric_name, metric_namespace]))
+            try:
+                cw_client.put_metric_alarm(
+                    AlarmName=alarm_name,
+                    AlarmDescription=alarm_desc,
+                    ActionsEnabled=True,
+                    OKActions=[
+                        topic_arn
+                    ],
+                    AlarmActions=[
+                        topic_arn
+                    ],
+                    MetricName=metric_name,
+                    Namespace=metric_namespace,
+                    Statistic='Sum',
+                    Period=300,
+                    Unit='Count',
+                    EvaluationPeriods=12,
+                    DatapointsToAlarm=1,
+                    Threshold=alarm_threshold,
+                    ComparisonOperator='GreaterThanOrEqualToThreshold',
+                    TreatMissingData='notBreaching'
+                )
+            except Exception as e:
+                exit("Exception occurred while putting metric alarm: " + str(e))
+            log.debug("Successfully added metric alarm.")
+
+
+        def verify(event, _):
+            log.info("Begin handler")
+            log.debug("====Print Event====")
+            log.debug(event)
+
+            filter_name = event['FilterName']
+            filter_pattern = event['FilterPattern']
+            metric_name = event['MetricName']
+            metric_namespace = event['MetricNamespace']
+            metric_value = event['MetricValue']
+            alarm_name = event['AlarmName']
+            alarm_desc = event['AlarmDesc']
+            alarm_threshold = event['AlarmThreshold']
+            cw_log_group = event['LogGroupName']
+            topic_arn = event['TopicArn']
+
+            put_metric_filter(cw_log_group, filter_name, filter_pattern, metric_name, metric_namespace, metric_value)
+            put_metric_alarm(alarm_name, alarm_desc, alarm_threshold, metric_name, metric_namespace, topic_arn)
+            return {
+                "response": {
+                    "message": f'Created filter {event["FilterName"]} for metric {event["MetricName"]}, and alarm {event["AlarmName"]}',
+                    "status": "Success"
+                }
+            }
