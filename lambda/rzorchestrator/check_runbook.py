@@ -102,7 +102,7 @@ def lambda_handler(event, _):
         'controlid': finding.standard_control,
         'standardsupported': finding.standard_version_supported,
         'accountid': finding.account_id,
-        'resourceregion': finding.resource_region
+        'resourceregion': finding.resource_region,
     })
 
     if finding.standard_version_supported != 'True':

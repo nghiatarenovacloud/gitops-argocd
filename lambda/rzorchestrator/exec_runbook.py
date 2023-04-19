@@ -100,7 +100,7 @@ def lambda_handler(event, _):
 
     ssm_parameters = {
         "Finding": [
-            json.dumps(event['Finding'])
+            json.dumps(event)
         ],
         "AutomationAssumeRole": [
             remediation_role_arn

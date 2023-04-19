@@ -12,7 +12,7 @@ properties = ['status', 'message', 'executionid',
               'securitystandard', 'securitystandardversion', 'standardsupported',
               'controlid', 'accountid', 'automationdocid',
               'remediationrole', 'workflowdoc', 'workflowaccount',
-              'workflowrole', 'eventtype', 'resourceregion', 'renozone', 'workflow_data', 'executionaccount', 'executionregion']
+              'workflowrole', 'eventtype', 'resourceregion', 'renozone', 'workflow_data', 'executionaccount', 'executionregion' ]
 
 
 class StepFunctionLambdaAnswer:
